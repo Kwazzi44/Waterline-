@@ -1,5 +1,5 @@
 -- Installer for Water Line Control from Kwazzi44/Waterline-
--- Run in OpenComputers: wget -f https://raw.githubusercontent.com/Kwazzi44/Waterline-/main/install.lua && install
+-- Run in OpenComputers: wget -f https://raw.githubusercontent.com/Kwazzi44/Waterline-/main/install-waterline.lua && ./install-waterline.lua
 
 local shell = require("shell")
 local filesystem = require("filesystem")
