@@ -40,6 +40,9 @@ function t5controller:new(plasmaTransposerAddress, coolantTransposerAddress)
 
   ---Init T5Controller
   function obj:init()
+    local config = require("config")
+    local locale = require("lib.locale")[config.locale or "en"]
+
     self:findMachineProxy()
     self:findTransposerFluid(self.plasmaTransposerProxy, "plasma.helium")
     self:findTransposerFluid(self.coolantTransposerProxy, "supercoolant")
@@ -85,7 +88,7 @@ function t5controller:new(plasmaTransposerAddress, coolantTransposerAddress)
       end
     end
     self.stateMachine.states.heating.update = function()
-      local temperature = self.gtSensorParser:getNumber(4, "Current temperature:")
+      local temperature = self.gtSensorParser:getNumber(4, locale.t5.prefix)
 
       if self.controllerProxy.hasWork() == false then
         self.stateMachine:setState(self.stateMachine.states.idle)
@@ -110,7 +113,7 @@ function t5controller:new(plasmaTransposerAddress, coolantTransposerAddress)
       end
     end
     self.stateMachine.states.cooling.update = function()
-      local temperature = self.gtSensorParser:getNumber(4, "Current temperature:")
+      local temperature = self.gtSensorParser:getNumber(4, locale.t5.prefix)
 
       if self.controllerProxy.hasWork() == false then
         self.stateMachine:setState(self.stateMachine.states.idle)

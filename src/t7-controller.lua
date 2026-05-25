@@ -77,7 +77,8 @@ function t7controller:new(
 
     self.stateMachine.states.work = self.stateMachine:createState("Work")
     self.stateMachine.states.work.init = function()
-      local bitString = self.gtSensorParser:getString(4, "Current control signal (binary): 0b")
+      local lineContent = self.gtSensorParser:getString(4)
+      local bitString = lineContent and string.match(lineContent, "0b([01]+)")
 
       if bitString == nil then
         bitString = "0000"

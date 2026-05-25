@@ -34,19 +34,25 @@ function t6controller:new(transposerAddress)
 
   ---Init T6Controller
   function obj:init()
+    local config = require("config")
+    local locale = require("lib.locale")[config.locale or "en"]
+
+    local function findMatchedLens()
+      local rawLens = self.gtSensorParser:getString(5, locale.t6.prefix)
+      if not rawLens then
+        return nil
+      end
+      for english, localPattern in pairs(locale.t6.lenses) do
+        if string.find(rawLens, localPattern) then
+          return english
+        end
+      end
+      return nil
+    end
+
     self:findMachineProxy()
     self:resetLenses()
-    self:findTransposerItem(self.transposerProxy, {
-      "Orundum Lens",
-      "Amber Lens",
-      "Aer Lens",
-      "Emerald Lens",
-      "Mana Diamond Lens",
-      "Blue Topaz Lens",
-      "Amethyst Lens",
-      "Fluor-Buergerite Lens",
-      "Dilithium Lens"
-    })
+    self:findTransposerItem(self.transposerProxy, locale.t6.lenses)
 
     self.gtSensorParser:getInformation()
 
@@ -69,10 +75,20 @@ function t6controller:new(transposerAddress)
 
     self.stateMachine.states.changeLens = self.stateMachine:createState("Change Lens")
     self.stateMachine.states.changeLens.init = function()
-      local lens = self.gtSensorParser:getString(5, "Current lens requested: ")
+      local lens = findMatchedLens()
       local recipeError = self.gtSensorParser:getString(6)
 
-      if lens == nil or recipeError == "Removed lens too early. Failing this recipe." then
+      local isLensError = false
+      if recipeError ~= nil then
+        if recipeError == "Removed lens too early. Failing this recipe." or
+           string.find(recipeError, "извлечена") or
+           string.find(recipeError, "удалена") or
+           string.find(recipeError, "рано") then
+          isLensError = true
+        end
+      end
+
+      if lens == nil or isLensError then
         self.stateMachine:setState(self.stateMachine.states.waitEnd)
         return
       end
@@ -82,7 +98,7 @@ function t6controller:new(transposerAddress)
 
     self.stateMachine.states.waitLens = self.stateMachine:createState("Wait Lens")
     self.stateMachine.states.waitLens.update = function()
-      local lens = self.gtSensorParser:getString(5, "Current lens requested: ")
+      local lens = findMatchedLens()
 
       if self.controllerProxy.hasWork() == false then
         self.stateMachine:setState(self.stateMachine.states.idle)
@@ -119,18 +135,34 @@ function t6controller:new(transposerAddress)
 
   ---Find Transposer Item
   ---@param proxy transposer
-  ---@param itemLabels string[]
-  function obj:findTransposerItem(proxy, itemLabels)
-    local result, skipped = componentDiscoverLib.discoverTransposerItemStorage(proxy, itemLabels)
+  ---@param itemLabelsMap table<string, string> -- maps English name -> local pattern
+  function obj:findTransposerItem(proxy, itemLabelsMap)
+    local localLabels = {}
+    local localToEnglish = {}
+    for english, localPattern in pairs(itemLabelsMap) do
+      table.insert(localLabels, localPattern)
+      localToEnglish[localPattern] = english
+    end
+
+    local result, skipped = componentDiscoverLib.discoverTransposerItemStorage(proxy, localLabels)
 
     if #skipped ~= 0 then
-      if not (#skipped == 1 and skipped[1] == "Dilithium Lens") then
-        error("[T6] Can't find items: "..table.concat(skipped, ", "))
+      local skippedEnglish = {}
+      for _, localPattern in ipairs(skipped) do
+        local englishName = localToEnglish[localPattern] or localPattern
+        table.insert(skippedEnglish, englishName)
+      end
+
+      if not (#skippedEnglish == 1 and skippedEnglish[1] == "Dilithium Lens") then
+        error("[T6] Can't find items: "..table.concat(skippedEnglish, ", "))
       end
     end
 
-    for key, value in pairs(result) do
-      self.transposerItems[key] = value
+    for localPattern, value in pairs(result) do
+      local english = localToEnglish[localPattern]
+      if english then
+        self.transposerItems[english] = value
+      end
     end
   end
 

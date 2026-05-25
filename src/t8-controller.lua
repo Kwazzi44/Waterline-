@@ -42,22 +42,18 @@ function t8controller:new(maxQuarkCount, transposerAddress, subMeInterfaceAddres
 
   ---Init T8Controller
   function obj:init()
+    local config = require("config")
+    local locale = require("lib.locale")[config.locale or "en"]
+
     self:findMachineProxy()
-    self:findTransposerItem(self.transposerProxy, {
-      "Up-Quark Releasing Catalyst",
-      "Down-Quark Releasing Catalyst",
-      "Strange-Quark Releasing Catalyst",
-      "Charm-Quark Releasing Catalyst",
-      "Bottom-Quark Releasing Catalyst",
-      "Top-Quark Releasing Catalyst"
-    })
+    self:findTransposerItem(self.transposerProxy, locale.t8.quarks)
 
     self.gtSensorParser:getInformation()
 
     self.stateMachine.states.idle = self.stateMachine:createState("Idle")
     self.stateMachine.states.idle.update = function()
       if self.controllerProxy.hasWork() then
-        if self.gtSensorParser:stringHas(#self.gtSensorParser.sensorData, "Yes") == true then
+        if self.gtSensorParser:stringHas(#self.gtSensorParser.sensorData, locale.t8.yes) == true then
           self.stateMachine:setState(self.stateMachine.states.waitEnd)
         else
           self.stateMachine:setState(self.stateMachine.states.putFirst)
@@ -73,7 +69,7 @@ function t8controller:new(maxQuarkCount, transposerAddress, subMeInterfaceAddres
 
     self.stateMachine.states.resultPutFirst = self.stateMachine:createState("Result Put First")
     self.stateMachine.states.resultPutFirst.update = function()
-      if self.gtSensorParser:stringHas(#self.gtSensorParser.sensorData, "Yes") == true then
+      if self.gtSensorParser:stringHas(#self.gtSensorParser.sensorData, locale.t8.yes) == true then
         self.stateMachine:setState(self.stateMachine.states.waitEnd)
       else
         self.stateMachine:setState(self.stateMachine.states.putSecond)
@@ -88,7 +84,7 @@ function t8controller:new(maxQuarkCount, transposerAddress, subMeInterfaceAddres
 
     self.stateMachine.states.resultPutSecond = self.stateMachine:createState("Result Put Second")
     self.stateMachine.states.resultPutSecond.update = function()
-      if self.gtSensorParser:stringHas(#self.gtSensorParser.sensorData, "Yes") == true then
+      if self.gtSensorParser:stringHas(#self.gtSensorParser.sensorData, locale.t8.yes) == true then
         self.stateMachine:setState(self.stateMachine.states.waitEnd)
       else
         self.stateMachine:setState(self.stateMachine.states.putThird)
@@ -110,7 +106,7 @@ function t8controller:new(maxQuarkCount, transposerAddress, subMeInterfaceAddres
       local quarks = self.subMeInterfaceProxy.getItemsInNetwork({name = "gregtech:gt.metaitem.03"})
 
       for _, quark in pairs(quarks) do
-        if quark.label ~= "Unaligned Quark Releasing Catalyst" and quark.size < self.maxQuarkCount then
+        if quark.label ~= nil and string.find(quark.label, locale.t8.unalignedQuark) == nil and quark.size < self.maxQuarkCount then
           local crafts = self.subMeInterfaceProxy.getCraftables({label = quark.label})
 
           if crafts[1] == nil then
@@ -156,16 +152,31 @@ function t8controller:new(maxQuarkCount, transposerAddress, subMeInterfaceAddres
 
   ---Find Transposer Item
   ---@param proxy transposer
-  ---@param itemLabels string[]
-  function obj:findTransposerItem(proxy, itemLabels)
-    local result, skipped = componentDiscoverLib.discoverTransposerItemStorage(proxy, itemLabels, {sides.up})
-
-    if #skipped ~= 0 then
-      error("[T8] Can't find items: "..table.concat(skipped, ", "))
+  ---@param itemLabelsMap table<string, string> -- maps English name -> local pattern
+  function obj:findTransposerItem(proxy, itemLabelsMap)
+    local localLabels = {}
+    local localToEnglish = {}
+    for english, localPattern in pairs(itemLabelsMap) do
+      table.insert(localLabels, localPattern)
+      localToEnglish[localPattern] = english
     end
 
-    for key, value in pairs(result) do
-      self.transposerItems[key] = value
+    local result, skipped = componentDiscoverLib.discoverTransposerItemStorage(proxy, localLabels, {sides.up})
+
+    if #skipped ~= 0 then
+      local skippedEnglish = {}
+      for _, localPattern in ipairs(skipped) do
+        local englishName = localToEnglish[localPattern] or localPattern
+        table.insert(skippedEnglish, englishName)
+      end
+      error("[T8] Can't find items: "..table.concat(skippedEnglish, ", "))
+    end
+
+    for localPattern, value in pairs(result) do
+      local english = localToEnglish[localPattern]
+      if english then
+        self.transposerItems[english] = value
+      end
     end
   end
 

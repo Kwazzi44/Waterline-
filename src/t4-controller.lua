@@ -38,9 +38,12 @@ function t4controller:new(hydrochloricAcidTransposerAddress, sodiumHydroxideTran
 
   ---Init T4Controller
   function obj:init()
+    local config = require("config")
+    local locale = require("lib.locale")[config.locale or "en"]
+
     self:findMachineProxy()
     self:findTransposerFluid(self.hydrochloricAcidTransposerProxy, "hydrochloricacid_gt5u")
-    self:findTransposerItem(self.sodiumHydroxideTransposerProxy, "Sodium Hydroxide Dust")
+    self:findTransposerItem(self.sodiumHydroxideTransposerProxy, locale.t4.sodiumHydroxide, "Sodium Hydroxide Dust")
 
     self.gtSensorParser:getInformation()
 
@@ -53,7 +56,7 @@ function t4controller:new(hydrochloricAcidTransposerAddress, sodiumHydroxideTran
 
     self.stateMachine.states.work = self.stateMachine:createState("Work")
     self.stateMachine.states.work.update = function()
-      local phValue = self.gtSensorParser:getNumber(4, "Current pH Value:")
+      local phValue = self.gtSensorParser:getNumber(4, locale.t4.prefix)
 
       if phValue == nil then
         return
@@ -108,16 +111,17 @@ function t4controller:new(hydrochloricAcidTransposerAddress, sodiumHydroxideTran
 
   ---Find Transposer Item
   ---@param proxy transposer
-  ---@param itemLabels string
-  function obj:findTransposerItem(proxy, itemLabels)
-    local result, skipped = componentDiscoverLib.discoverTransposerItemStorage(proxy, {itemLabels}, {sides.up})
+  ---@param itemLabel string
+  ---@param internalKey string
+  function obj:findTransposerItem(proxy, itemLabel, internalKey)
+    local result, skipped = componentDiscoverLib.discoverTransposerItemStorage(proxy, {itemLabel}, {sides.up})
 
     if #skipped ~= 0 then
       error("[T4] Can't find items: "..table.concat(skipped, ", "))
     end
 
     for key, value in pairs(result) do
-      self.transposerItems[key] = value
+      self.transposerItems[internalKey] = value
     end
   end
 

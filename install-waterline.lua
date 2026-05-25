@@ -15,6 +15,7 @@ local files = {
   "lib/gt-sensor-parser.lua",
   "lib/gui-lib.lua",
   "lib/list-lib.lua",
+  "lib/locale.lua",
   "lib/logger-lib.lua",
   "lib/program-lib.lua",
   "lib/state-machine-lib.lua",

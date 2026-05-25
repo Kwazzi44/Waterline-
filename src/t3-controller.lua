@@ -36,6 +36,9 @@ function t3controller:new(transposerAddress)
 
   ---Init T3Controller
   function obj:init()
+    local config = require("config")
+    local locale = require("lib.locale")[config.locale or "en"]
+
     self:findMachineProxy()
     self:findTransposerFluid(self.transposerProxy, "polyaluminiumchloride")
 
@@ -48,7 +51,7 @@ function t3controller:new(transposerAddress)
 
     self.stateMachine.states.work = self.stateMachine:createState("Work")
     self.stateMachine.states.work.init = function()
-      local currentCount = self.gtSensorParser:getNumber(4, "Polyaluminium Chloride consumed this cycle: §c")
+      local currentCount = self.gtSensorParser:getNumber(4, locale.t3.prefix)
 
       if currentCount ~= nil and currentCount >= self.requiredCount then
         self.stateMachine:setState(self.stateMachine.states.waitEnd)

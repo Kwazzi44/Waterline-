@@ -13,6 +13,7 @@ local t7controllerLib = require("src.t7-controller")
 local t8controllerLib = require("src.t8-controller")
 
 local config = {
+  locale = "en", -- Language of the client (en or ru)
   enableAutoUpdate = true, -- Enable auto update on start
 
   logger = loggerLib:newFormConfig({
