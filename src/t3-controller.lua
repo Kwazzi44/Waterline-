@@ -42,16 +42,53 @@ function t3controller:new(transposerAddress)
     self:findMachineProxy()
     self:findTransposerFluid(self.transposerProxy, "polyaluminiumchloride")
 
+    local function getPolyaluminiumChlorideInHatch()
+      local tankCount = self.transposerProxy.getTankCount(sides.up)
+      if tankCount == nil or tankCount == 0 then
+        return 0
+      end
+      for tankIndex = 1, tankCount do
+        local fluid = self.transposerProxy.getFluidInTank(sides.up, tankIndex)
+        if fluid and fluid.name == "polyaluminiumchloride" then
+          return fluid.amount
+        end
+      end
+      return 0
+    end
+
     self.stateMachine.states.idle = self.stateMachine:createState("Idle")
     self.stateMachine.states.idle.update = function()
       if self.controllerProxy.hasWork() then
         self.stateMachine:setState(self.stateMachine.states.work)
+        return
+      end
+
+      if self.controllerProxy.isWorkAllowed() then
+        local currentInHatch = getPolyaluminiumChlorideInHatch()
+        if currentInHatch < self.requiredCount then
+          local countToAdd = self.requiredCount - currentInHatch
+          
+          local fluidInStorage = self.transposerProxy.getFluidInTank(
+            self.transposerLiquids["polyaluminiumchloride"].side,
+            self.transposerLiquids["polyaluminiumchloride"].tank
+          )
+          
+          if fluidInStorage ~= nil and fluidInStorage.amount > 0 then
+            local transferAmount = math.min(countToAdd, fluidInStorage.amount)
+            self.transposerProxy.transferFluid(
+              self.transposerLiquids["polyaluminiumchloride"].side,
+              sides.up,
+              transferAmount,
+              self.transposerLiquids["polyaluminiumchloride"].tank
+            )
+          end
+        end
       end
     end
 
     self.stateMachine.states.work = self.stateMachine:createState("Work")
     self.stateMachine.states.work.init = function()
-      local currentCount = self.gtSensorParser:getNumber(4, locale.t3.prefix)
+      local currentCount = self.gtSensorParser:getNumber(4)
 
       if currentCount ~= nil and currentCount >= self.requiredCount then
         self.stateMachine:setState(self.stateMachine.states.waitEnd)
