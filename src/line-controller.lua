@@ -25,6 +25,7 @@ function lineController:new()
   ---Init LineController
   function obj:init()
     self:findMachineProxy()
+    self.controllerProxy.setWorkAllowed(true)
   end
 
   ---Find controller proxy
